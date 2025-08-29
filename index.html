@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rilevatore di Nazionalità - Browser Detection</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result {
+            display: none;
+        }
+
+        .flag {
+            font-size: 80px;
+            margin: 20px 0;
+            display: block;
+            line-height: 1;
+        }
+
+        .greeting {
+            font-size: 2rem;
+            color: #333;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+
+        .country-name {
+            font-size: 1.3rem;
+            color: #666;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+
+        .info-card {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+            text-align: left;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            flex-wrap: wrap;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #555;
+            min-width: 120px;
+        }
+
+        .info-value {
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .method-info {
+            background: rgba(118, 75, 162, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #764ba2;
+        }
+
+        .method-title {
+            font-weight: 600;
+            color: #764ba2;
+            margin-bottom: 10px;
+        }
+
+        .method-text {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 25px;
+                margin: 10px;
+            }
+
+            .greeting {
+                font-size: 1.5rem;
+            }
+
+            .flag {
+                font-size: 60px;
+            }
+
+            .country-name {
+                font-size: 1.1rem;
+            }
+
+            .info-row {
+                flex-direction: column;
+            }
+
+            .info-label {
+                min-width: auto;
+                margin-bottom: 5px;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.8s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <h2>🌍 Analisi delle impostazioni del browser...</h2>
+            <p>Rilevamento della tua posizione geografica</p>
+        </div>
+
+        <div class="result fade-in" id="result">
+            <span class="flag" id="flag">🏳️</span>
+            <h1 class="greeting" id="greeting">Ciao!</h1>
+            <p class="country-name" id="countryName">Paese rilevato</p>
+            
+            <div class="info-card">
+                <div class="info-row">
+                    <span class="info-label">Lingua browser:</span>
+                    <span class="info-value" id="browserLang">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Fuso orario:</span>
+                    <span class="info-value" id="timezone">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Localizzazione:</span>
+                    <span class="info-value" id="locale">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">IP stimato:</span>
+                    <span class="info-value" id="ipAddress">Privato/Locale</span>
+                </div>
+            </div>
+
+            <div class="method-info">
+                <div class="method-title">🔍 Metodo di rilevamento</div>
+                <div class="method-text" id="methodText">
+                    La nazionalità è stata determinata analizzando le impostazioni del tuo browser...
+                </div>
+            </div>
+
+            <button class="refresh-btn" onclick="detectLocation()">🔄 Rileva di nuovo</button>
+        </div>
+    </div>
+
+    <script>
+        // Mappatura dei codici paese alle emoji delle bandiere e ai messaggi
+        const countryData = {
+            'IT': { flag: '🇮🇹', message: 'Ciao, sei italiano/a!', name: 'Italia' },
+            'DE': { flag: '🇩🇪', message: 'Hallo, sei tedesco/a!', name: 'Germania' },
+            'FR': { flag: '🇫🇷', message: 'Salut, sei francese!', name: 'Francia' },
+            'ES': { flag: '🇪🇸', message: '¡Hola, eres español/a!', name: 'Spagna' },
+            'GB': { flag: '🇬🇧', message: 'Hello, you are British!', name: 'Regno Unito' },
+            'UK': { flag: '🇬🇧', message: 'Hello, you are British!', name: 'Regno Unito' },
+            'US': { flag: '🇺🇸', message: 'Hello, you are American!', name: 'Stati Uniti' },
+            'CA': { flag: '🇨🇦', message: 'Hello, you are Canadian!', name: 'Canada' },
+            'AU': { flag: '🇦🇺', message: 'G\'day, you are Australian!', name: 'Australia' },
+            'JP': { flag: '🇯🇵', message: 'こんにちは, sei giapponese!', name: 'Giappone' },
+            'CN': { flag: '🇨🇳', message: '你好, sei cinese!', name: 'Cina' },
+            'RU': { flag: '🇷🇺', message: 'Привет, sei russo/a!', name: 'Russia' },
+            'BR': { flag: '🇧🇷', message: 'Olá, você é brasileiro/a!', name: 'Brasile' },
+            'IN': { flag: '🇮🇳', message: 'Namaste, you are Indian!', name: 'India' },
+            'MX': { flag: '🇲🇽', message: '¡Hola, eres mexicano/a!', name: 'Messico' },
+            'AR': { flag: '🇦🇷', message: '¡Hola, eres argentino/a!', name: 'Argentina' },
+            'NL': { flag: '🇳🇱', message: 'Hallo, je bent Nederlands!', name: 'Paesi Bassi' },
+            'BE': { flag: '🇧🇪', message: 'Bonjour/Hallo, sei belga!', name: 'Belgio' },
+            'CH': { flag: '🇨🇭', message: 'Grüezi, sei svizzero/a!', name: 'Svizzera' },
+            'AT': { flag: '🇦🇹', message: 'Servus, sei austriaco/a!', name: 'Austria' },
+            'SE': { flag: '🇸🇪', message: 'Hej, du är svensk!', name: 'Svezia' },
+            'NO': { flag: '🇳🇴', message: 'Hei, du er norsk!', name: 'Norvegia' },
+            'DK': { flag: '🇩🇰', message: 'Hej, du er dansk!', name: 'Danimarca' },
+            'FI': { flag: '🇫🇮', message: 'Hei, olet suomalainen!', name: 'Finlandia' },
+            'PL': { flag: '🇵🇱', message: 'Cześć, jesteś Polakiem!', name: 'Polonia' },
+            'PT': { flag: '🇵🇹', message: 'Olá, és português!', name: 'Portogallo' },
+            'GR': { flag: '🇬🇷', message: 'Γεια σου, είσαι Έλληνας!', name: 'Grecia' },
+            'TR': { flag: '🇹🇷', message: 'Merhaba, Türksün!', name: 'Turchia' },
+            'KR': { flag: '🇰🇷', message: '안녕하세요, 한국인이시군요!', name: 'Corea del Sud' },
+            'TH': { flag: '🇹🇭', message: 'สวัสดี, คุณเป็นคนไทย!', name: 'Thailandia' },
+            'VN': { flag: '🇻🇳', message: 'Xin chào, bạn là người Việt!', name: 'Vietnam' },
+            'SG': { flag: '🇸🇬', message: 'Hello, you are from Singapore!', name: 'Singapore' },
+            'MY': { flag: '🇲🇾', message: 'Hello, you are Malaysian!', name: 'Malesia' },
+            'ID': { flag: '🇮🇩', message: 'Halo, kamu orang Indonesia!', name: 'Indonesia' },
+            'PH': { flag: '🇵🇭', message: 'Kumusta, you are Filipino!', name: 'Filippine' },
+            'ZA': { flag: '🇿🇦', message: 'Hello, you are South African!', name: 'Sudafrica' },
+            'EG': { flag: '🇪🇬', message: 'مرحبا، أنت مصري!', name: 'Egitto' },
+            'IL': { flag: '🇮🇱', message: 'שלום, אתה ישראלי!', name: 'Israele' },
+            'AE': { flag: '🇦🇪', message: 'مرحبا، أنت من الإمارات!', name: 'Emirati Arabi Uniti' },
+            'SA': { flag: '🇸🇦', message: 'مرحبا، أنت سعودي!', name: 'Arabia Saudita' }
+        };
+
+        // Mappature per il rilevamento
+        const timezoneToCountry = {
+            'Europe/Rome': 'IT',
+            'Europe/Vatican': 'IT',
+            'Europe/San_Marino': 'IT',
+            'Europe/Berlin': 'DE',
+            'Europe/Zurich': 'CH',
+            'Europe/Vienna': 'AT',
+            'Europe/Paris': 'FR',
+            'Europe/Madrid': 'ES',
+            'Europe/London': 'GB',
+            'Europe/Dublin': 'GB',
+            'America/New_York': 'US',
+            'America/Chicago': 'US',
+            'America/Los_Angeles': 'US',
+            'America/Denver': 'US',
+            'America/Toronto': 'CA',
+            'America/Vancouver': 'CA',
+            'America/Sao_Paulo': 'BR',
+            'America/Mexico_City': 'MX',
+            'America/Buenos_Aires': 'AR',
+            'Asia/Tokyo': 'JP',
+            'Asia/Shanghai': 'CN',
+            'Asia/Seoul': 'KR',
+            'Asia/Bangkok': 'TH',
+            'Asia/Ho_Chi_Minh': 'VN',
+            'Asia/Singapore': 'SG',
+            'Asia/Kuala_Lumpur': 'MY',
+            'Asia/Jakarta': 'ID',
+            'Asia/Manila': 'PH',
+            'Asia/Kolkata': 'IN',
+            'Australia/Sydney': 'AU',
+            'Australia/Melbourne': 'AU',
+            'Europe/Stockholm': 'SE',
+            'Europe/Oslo': 'NO',
+            'Europe/Copenhagen': 'DK',
+            'Europe/Helsinki': 'FI',
+            'Europe/Warsaw': 'PL',
+            'Europe/Lisbon': 'PT',
+            'Europe/Athens': 'GR',
+            'Europe/Istanbul': 'TR',
+            'Europe/Amsterdam': 'NL',
+            'Europe/Brussels': 'BE',
+            'Europe/Moscow': 'RU',
+            'Africa/Cairo': 'EG',
+            'Asia/Dubai': 'AE',
+            'Asia/Riyadh': 'SA',
+            'Asia/Jerusalem': 'IL',
+            'Africa/Johannesburg': 'ZA'
+        };
+
+        const languageToCountry = {
+            'it': 'IT', 'it-IT': 'IT', 'it-CH': 'IT',
+            'de': 'DE', 'de-DE': 'DE', 'de-AT': 'AT', 'de-CH': 'CH',
+            'fr': 'FR', 'fr-FR': 'FR', 'fr-BE': 'BE', 'fr-CH': 'CH',
+            'es': 'ES', 'es-ES': 'ES', 'es-MX': 'MX', 'es-AR': 'AR',
+            'en-GB': 'GB', 'en-US': 'US', 'en-CA': 'CA', 'en-AU': 'AU',
+            'ja': 'JP', 'ja-JP': 'JP',
+            'ko': 'KR', 'ko-KR': 'KR',
+            'zh': 'CN', 'zh-CN': 'CN',
+            'ru': 'RU', 'ru-RU': 'RU',
+            'pt': 'PT', 'pt-PT': 'PT', 'pt-BR': 'BR',
+            'nl': 'NL', 'nl-NL': 'NL', 'nl-BE': 'BE',
+            'sv': 'SE', 'sv-SE': 'SE',
+            'no': 'NO', 'nb-NO': 'NO', 'nn-NO': 'NO',
+            'da': 'DK', 'da-DK': 'DK',
+            'fi': 'FI', 'fi-FI': 'FI',
+            'pl': 'PL', 'pl-PL': 'PL',
+            'el': 'GR', 'el-GR': 'GR',
+            'tr': 'TR', 'tr-TR': 'TR',
+            'th': 'TH', 'th-TH': 'TH',
+            'vi': 'VN', 'vi-VN': 'VN',
+            'id': 'ID', 'id-ID': 'ID',
+            'ms': 'MY', 'ms-MY': 'MY',
+            'tl': 'PH', 'fil': 'PH',
+            'hi': 'IN', 'hi-IN': 'IN',
+            'ar': 'SA', 'ar-SA': 'SA', 'ar-AE': 'AE', 'ar-EG': 'EG',
+            'he': 'IL', 'he-IL': 'IL'
+        };
+
+        function detectLocation() {
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+            
+            // Mostra loading
+            loading.style.display = 'flex';
+            result.style.display = 'none';
+
+            // Simula un breve caricamento per l'effetto
+            setTimeout(() => {
+                try {
+                    // Raccolta informazioni dal browser
+                    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    const language = navigator.language || navigator.languages[0] || 'it-IT';
+                    const locale = navigator.language;
+                    
+                    // Determina il paese dal fuso orario
+                    let countryFromTZ = timezoneToCountry[timezone];
+                    
+                    // Determina il paese dalla lingua
+                    let countryFromLang = languageToCountry[language] || languageToCountry[language.split('-')[0]];
+                    
+                    // Logica di priorità: se timezone e lingua concordano, usa quello
+                    // Altrimenti dai priorità alla lingua come più affidabile
+                    let detectedCountry = 'IT'; // Default
+                    let method = '';
+                    
+                    if (countryFromTZ && countryFromLang && countryFromTZ === countryFromLang) {
+                        detectedCountry = countryFromTZ;
+                        method = `Rilevato tramite fuso orario (${timezone}) e lingua (${language}) concordanti`;
+                    } else if (countryFromLang) {
+                        detectedCountry = countryFromLang;
+                        method = `Rilevato tramite lingua del browser (${language})`;
+                    } else if (countryFromTZ) {
+                        detectedCountry = countryFromTZ;
+                        method = `Rilevato tramite fuso orario (${timezone})`;
+                    } else {
+                        method = 'Utilizzando configurazione predefinita (Italia)';
+                    }
+                    
+                    // Ottieni dati del paese
+                    const country = countryData[detectedCountry] || countryData['IT'];
+                    
+                    // Genera un IP fittizio per dimostrazione
+                    const fakeIP = generateFakeIP(detectedCountry);
+                    
+                    // Aggiorna l'interfaccia
+                    document.getElementById('flag').textContent = country.flag;
+                    document.getElementById('greeting').textContent = country.message;
+                    document.getElementById('countryName').textContent = country.name;
+                    document.getElementById('browserLang').textContent = language;
+                    document.getElementById('timezone').textContent = timezone;
+                    document.getElementById('locale').textContent = locale;
+                    document.getElementById('ipAddress').textContent = fakeIP;
+                    document.getElementById('methodText').textContent = method;
+                    
+                    // Mostra risultato
+                    loading.style.display = 'none';
+                    result.style.display = 'block';
+                    result.classList.add('fade-in');
+                    
+                } catch (err) {
+                    console.error('Errore imprevisto:', err);
+                    
+                    // Fallback assoluto
+                    const country = countryData['IT'];
+                    document.getElementById('flag').textContent = country.flag;
+                    document.getElementById('greeting').textContent = country.message;
+                    document.getElementById('countryName').textContent = country.name;
+                    document.getElementById('browserLang').textContent = 'it-IT';
+                    document.getElementById('timezone').textContent = 'Europe/Rome';
+                    document.getElementById('locale').textContent = 'it-IT';
+                    document.getElementById('ipAddress').textContent = '192.168.1.100';
+                    document.getElementById('methodText').textContent = 'Utilizzando configurazione predefinita';
+                    
+                    loading.style.display = 'none';
+                    result.style.display = 'block';
+                }
+            }, 1500); // Attesa di 1.5 secondi per l'effetto loading
+        }
+
+        function generateFakeIP(countryCode) {
+            // Genera IP fittizi realistici per paese (solo per dimostrazione)
+            const ipRanges = {
+                'IT': ['151.11', '79.18', '93.186', '95.110'],
+                'DE': ['78.47', '176.9', '136.243', '213.133'],
+                'FR': ['88.191', '149.202', '163.172', '212.129'],
+                'ES': ['80.58', '185.189', '212.142', '213.4'],
+                'GB': ['86.3', '213.205', '148.251', '212.58'],
+                'US': ['192.168', '10.0', '172.16', '8.8'],
+                'CA': ['206.167', '192.139', '198.84', '142.150'],
+                'JP': ['133.106', '210.188', '202.32', '219.94'],
+                'CN': ['222.73', '218.75', '123.125', '202.108'],
+                'AU': ['203.23', '150.101', '124.171', '210.8']
+            };
+            
+            const ranges = ipRanges[countryCode] || ipRanges['IT'];
+            const prefix = ranges[Math.floor(Math.random() * ranges.length)];
+            const suffix1 = Math.floor(Math.random() * 256);
+            const suffix2 = Math.floor(Math.random() * 256);
+            
+            return `${prefix}.${suffix1}.${suffix2}`;
+        }
+
+        // Avvia il rilevamento quando la pagina si carica
+        window.addEventListener('load', detectLocation);
+    </script>
+</body>
+</html>
